@@ -10,45 +10,47 @@
 
 | Phase | Count | Description |
 |-------|-------|-------------|
-| Unit (f49) | 4 | Config, LaborDetector, Alert serialization |
-| Integration (f50) | 1 | Ingest + LaborDetector with TempDir fixtures |
-| f51 | 1 | E2E scaffold (pass) |
-| — | **6** | |
+| cargo test (unit) | 27 | config(6), types(5), data(6), detect(6), export(4) |
+| cargo test (integration) | 4 | run fixtures, min-confidence, ingest, missing-data-path |
+| --test f49 | 4 | Config, LaborDetector, Alert serialization |
+| --test f50 | 2 | Ingest + LaborDetector + GhostDetector with TempDir |
+| --test f51 | 1 | E2E binary run |
+| — | **38** | |
 
 ---
 
 ## TRIPLE SIMS Mapping
 
-### Sim 1: User Story → Tests (TBD)
+### Sim 1: User Story → Tests
 
 | User Story | Test(s) |
 |------------|---------|
-| D1: Proactive labor alerts | TBD |
-| D3: Ghost detection | TBD |
-| S1: Data ingestion | TBD |
-| S3: Audit trail | TBD |
+| D1: Proactive labor alerts | f50 LaborQualBelow |
+| D3: Ghost detection | f50 GHOST_NO_EMPLOYEE; run fixtures |
+| S1: Data ingestion | f50 Ingest::load_from_path |
+| S3: Audit trail | ReferralPackage.audit_entries |
 
-### Sim 2: Feature Gap → Tests (TBD)
-
-| Criterion | Test(s) |
-|-----------|---------|
-| Labor detector | TBD |
-| Ghost detector | TBD |
-| Config thresholds | TBD |
-
-### Sim 3: CLI/API → Tests (TBD)
+### Sim 2: Feature Gap → Tests
 
 | Criterion | Test(s) |
 |-----------|---------|
-| --test flag | TBD |
-| Exit codes | TBD |
+| Labor detector | f49, f50 |
+| Ghost detector | run fixtures |
+| Config thresholds | f49 Config::default |
+
+### Sim 3: CLI/API → Tests
+
+| Criterion | Test(s) |
+|-----------|---------|
+| --test flag | f49 f50 f51 |
+| Exit codes | f51 e2e |
 
 ### Sim 4: Output Schema
 
 | Criterion | Test(s) |
 |-----------|---------|
-| Alert serialization | TBD |
-| Export format | TBD |
+| Alert serialization | f49 |
+| Export format | export-referral |
 
 ---
 
@@ -58,4 +60,4 @@
 cargo run -p whyyoulying -- --test
 ```
 
-Exit 0 = all pass. (Tests not yet implemented.)
+Exit 0 = all pass.

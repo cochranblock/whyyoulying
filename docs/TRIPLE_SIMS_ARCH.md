@@ -82,8 +82,8 @@
 | Normalize | `data` (or `data::normalize`) | Contract, Employee, LaborCharge, BillingRecord |
 | Detect | `detect::labor`, `detect::ghost` | Vec&lt;Alert&gt; |
 | Output | `main` / CLI | stdout (JSON/CSV) or file |
-| Export | TBD | Referral package, case docs |
-| Audit | TBD | AuditLog entries |
+| Export | `export::referral_package`, `export::fbi_case_opening` | Referral package, FBI case docs |
+| Audit | `ReferralPackage.audit_entries`, `chain_of_custody` | rule_id + input hash |
 
 ---
 
@@ -114,7 +114,7 @@
 
 | # | Item | Module | Deps |
 |---|------|--------|------|
-| B1 | Ingest from data_path (JSON/CSV stubs) | `data.rs` | A3 |
+| B1 | Ingest from data_path (JSON) | `data.rs` | A3 |
 | B2 | Normalize → entities | `data.rs` | A1, B1 |
 
 ### Phase C: Detection
@@ -139,8 +139,8 @@
 
 | # | Item | Module | Deps |
 |---|------|--------|------|
-| E1 | Referral export (GAGAS structure) | TBD | C1–C4 |
-| E2 | Audit log (rule_id + input hash) | TBD | A2 |
+| E1 | Referral export (GAGAS structure) | `export::referral_package` | C1–C4 |
+| E2 | Audit log (rule_id + input hash) | `ReferralPackage.audit_entries` | A2 |
 
 ---
 
@@ -157,8 +157,8 @@ src/
 │   ├── mod.rs
 │   ├── labor.rs
 │   └── ghost.rs
-└── export/          # TBD Phase E
-    └── mod.rs
+└── export/
+    └── mod.rs       # referral_package, fbi_case_opening
 ```
 
 ---
@@ -175,6 +175,5 @@ src/
 
 ## 7. Next Steps
 
-1. Implement Phase A (A1–A4).
-2. Update `TRIPLE_SIMS_WHYYOULYING.md` Implementation Summary.
-3. Run `@t` `@b` `@go` after each phase.
+1. Run `@t` `@b` `@go` after changes.
+2. Update `TRIPLE_SIMS_WHYYOULYING.md` Implementation Summary when adding features.

@@ -28,26 +28,26 @@
 
 | Criterion | Expected | Current | Gap |
 |-----------|----------|---------|-----|
-| Data ingestion | Contract, labor, billing feeds | Ingest stub | Full impl |
-| Labor category detection | Variance; quals vs charged | LaborDetector stub | Logic |
-| Ghost billing detection | Employee existence; billed-not-performed | GhostDetector stub | Logic |
-| Configurable thresholds | labor_variance_threshold_pct | Config has default | Add more |
-| Alert output | Alert struct | types::Alert | ✓ |
-| Fraud referral export | GAGAS / predicate docs | — | Missing |
-| Audit trail | Chain of custody | — | Missing |
-| --test flag | f49 f50 f51 same binary | — | Missing |
+| Data ingestion | Contract, labor, billing feeds | JSON from data_path | ✓ |
+| Labor category detection | Variance; quals vs charged | LaborDetector LABOR_VARIANCE, LABOR_QUAL_BELOW | ✓ |
+| Ghost billing detection | Employee existence; billed-not-performed | GhostDetector GHOST_* | ✓ |
+| Configurable thresholds | labor_variance_threshold_pct, min_confidence | Config + --threshold, --min-confidence | ✓ |
+| Alert output | Alert struct | types::Alert (rule_id, confidence, predicate_acts) | ✓ |
+| Fraud referral export | GAGAS / predicate docs | export-referral, export-referral --fbi | ✓ |
+| Audit trail | Chain of custody | ReferralPackage.chain_of_custody, audit_entries | ✓ |
+| --test flag | f49 f50 f51 same binary | ✓ | ✓ |
 
 ### Prioritized Gaps
 
-| # | Gap | Priority |
-|---|-----|----------|
-| 1 | Data ingestion (S1) | High |
-| 2 | Labor detector logic (D1, D2) | High |
-| 3 | Ghost detector logic (D3) | High |
-| 4 | --test binary (P14) | High |
-| 5 | Referral export (D6, F5) | Medium |
-| 6 | Audit trail (S3) | Medium |
-| 7 | Config thresholds (S2) | Medium |
+| # | Gap | Status |
+|---|-----|--------|
+| 1 | Data ingestion (S1) | ✓ Done |
+| 2 | Labor detector logic (D1, D2) | ✓ Done |
+| 3 | Ghost detector logic (D3) | ✓ Done |
+| 4 | --test binary (P14) | ✓ Done |
+| 5 | Referral export (D6, F5) | ✓ Done |
+| 6 | Audit trail (S3) | ✓ Done |
+| 7 | Config thresholds (S2) | ✓ Done |
 
 ---
 
@@ -57,8 +57,9 @@
 
 ### Current
 
-- `main.rs`: Config::load, Ingest::new, prints "whyyoulying ready"
-- No CLI args, no subcommands, no output format
+- Subcommands: `run`, `ingest`, `export-referral`
+- CLI: `--config`, `--data-path`, `--threshold`, `--min-confidence`, `--agency`, `--cage-code`, `--output` (json/csv)
+- Exit codes: 0=ok, 1=alerts, 2=error; stderr=progress, stdout=structured only
 
 ### Recommendations
 
@@ -111,3 +112,13 @@
 | 10 | Referral export | ✓ GAGAS structure with audit entries |
 
 **Commands:** `@t` `@b` `@go` §1. **Fixtures:** `fixtures/` for sample data.
+
+### Investigator Features (D5, F4, F5, S4)
+
+| Feature | CLI | Description |
+|---------|-----|-------------|
+| DoD nexus filter | `--agency`, `--cage-code` | Filter by agency/CAGE before case opening |
+| Confidence threshold | `--min-confidence` | S4 false-positive control (0-100) |
+| FBI predicate routing | `predicate_acts` in Alert | False Claims, wire fraud, identity fraud |
+| FBI case-opening export | `export-referral --fbi` | AG Guidelines factual basis |
+| GAGAS referral | `export-referral` | Chain of custody, audit entries |

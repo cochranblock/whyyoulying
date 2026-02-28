@@ -18,6 +18,15 @@ struct Cli {
     #[arg(long, global = true)]
     threshold: Option<f64>,
 
+    #[arg(long, global = true, help = "Min confidence 0-100 (S4 false-positive control)")]
+    min_confidence: Option<u8>,
+
+    #[arg(long, global = true, help = "DoD nexus: filter by agency (e.g. DoD, Army)")]
+    agency: Option<String>,
+
+    #[arg(long, global = true, help = "DoD nexus: filter by CAGE code")]
+    cage_code: Option<String>,
+
     #[arg(long, short, global = true, default_value = "json")]
     output: OutputFormat,
 
@@ -44,6 +53,8 @@ enum Commands {
     ExportReferral {
         #[arg(long)]
         path: Option<PathBuf>,
+        #[arg(long, default_value_t = false, help = "FBI case-opening format (AG Guidelines)")]
+        fbi: bool,
     },
 }
 
@@ -57,7 +68,7 @@ fn main() {
     let result = match &cli.command {
         None | Some(Commands::Run) => run(&cli),
         Some(Commands::Ingest { path }) => cmd_ingest(&cli, path.as_deref()),
-        Some(Commands::ExportReferral { path }) => cmd_export_referral(&cli, path.as_deref()),
+        Some(Commands::ExportReferral { path, fbi }) => cmd_export_referral(&cli, path.as_deref(), *fbi),
     };
 
     match result {
@@ -78,6 +89,9 @@ fn load_config(cli: &Cli) -> Result<Config> {
     cfg.apply_cli_overrides(
         cli.data_path.as_ref().map(|p| p.to_string_lossy().into_owned()),
         cli.threshold,
+        cli.min_confidence,
+        cli.agency.clone(),
+        cli.cage_code.clone(),
     );
     Ok(cfg)
 }
@@ -104,10 +118,21 @@ fn run(cli: &Cli) -> Result<i32> {
     let ghost = GhostDetector::new();
     let labor_alerts = labor.run(&ds);
     let ghost_alerts = ghost.run(&ds);
-    let alerts: Vec<Alert> = labor_alerts
+    let mut alerts: Vec<Alert> = labor_alerts
         .into_iter()
         .chain(ghost_alerts.into_iter())
         .collect();
+
+    let nexus_ids = ds.nexus_contract_ids(
+        config.filter_agency.as_deref(),
+        config.filter_cage_code.as_deref(),
+    );
+    alerts.retain(|a| {
+        a.confidence >= config.min_confidence
+            && a.contract_id
+                .as_ref()
+                .map_or(true, |id| nexus_ids.contains(id.as_str()))
+    });
 
     match cli.output {
         OutputFormat::Json => {
@@ -115,16 +140,19 @@ fn run(cli: &Cli) -> Result<i32> {
             println!("{out}");
         }
         OutputFormat::Csv => {
-            println!("fraud_type,rule_id,severity,summary,contract_id,employee_id,timestamp");
+            println!("fraud_type,rule_id,severity,confidence,summary,contract_id,employee_id,cage_code,agency,timestamp");
             for a in &alerts {
                 println!(
-                    "{:?},{:?},{},{},{},{},{}",
+                    "{:?},{:?},{},{},{},{},{},{},{},{}",
                     a.fraud_type,
                     a.rule_id,
                     a.severity,
+                    a.confidence,
                     escape_csv(&a.summary),
                     a.contract_id.as_deref().unwrap_or(""),
                     a.employee_id.as_deref().unwrap_or(""),
+                    a.cage_code.as_deref().unwrap_or(""),
+                    a.agency.as_deref().unwrap_or(""),
                     a.timestamp.as_deref().unwrap_or("")
                 );
             }
@@ -151,7 +179,7 @@ fn cmd_ingest(cli: &Cli, path: Option<&std::path::Path>) -> Result<i32> {
     Ok(0)
 }
 
-fn cmd_export_referral(cli: &Cli, path: Option<&std::path::Path>) -> Result<i32> {
+fn cmd_export_referral(cli: &Cli, path: Option<&std::path::Path>, fbi_format: bool) -> Result<i32> {
     let config = load_config(cli)?;
     let data_path = config
         .data_path
@@ -161,18 +189,32 @@ fn cmd_export_referral(cli: &Cli, path: Option<&std::path::Path>) -> Result<i32>
     let ds = Ingest::load_from_path(&data_path)?;
     let labor = LaborDetector::new(config.labor_variance_threshold_pct);
     let ghost = GhostDetector::new();
-    let alerts: Vec<Alert> = labor
+    let mut alerts: Vec<Alert> = labor
         .run(&ds)
         .into_iter()
         .chain(ghost.run(&ds).into_iter())
         .collect();
 
-    let pkg = whyyoulying::export::referral_package(&alerts);
-    let out = serde_json::to_string_pretty(&pkg)?;
+    let nexus_ids = ds.nexus_contract_ids(
+        config.filter_agency.as_deref(),
+        config.filter_cage_code.as_deref(),
+    );
+    alerts.retain(|a| {
+        a.confidence >= config.min_confidence
+            && a.contract_id
+                .as_ref()
+                .map_or(true, |id| nexus_ids.contains(id.as_str()))
+    });
+
+    let out = if fbi_format {
+        serde_json::to_string_pretty(&whyyoulying::export::fbi_case_opening(&alerts))?
+    } else {
+        serde_json::to_string_pretty(&whyyoulying::export::referral_package(&alerts))?
+    };
 
     if let Some(p) = path {
         std::fs::write(p, &out)?;
-        eprintln!("wrote referral package to {}", p.display());
+        eprintln!("wrote {} package to {}", if fbi_format { "FBI case-opening" } else { "GAGAS referral" }, p.display());
     } else {
         println!("{out}");
     }
@@ -244,9 +286,13 @@ fn run_f49() -> bool {
         fraud_type: FraudType::LaborCategory,
         rule_id: RuleId::LaborVariance,
         severity: 5,
+        confidence: 85,
         summary: "test".to_string(),
         contract_id: Some("C1".to_string()),
         employee_id: Some("E1".to_string()),
+        cage_code: None,
+        agency: None,
+        predicate_acts: None,
         timestamp: Some("2026-01-01T00:00:00Z".to_string()),
     };
     let json = serde_json::to_string(&alert).unwrap();
@@ -271,15 +317,23 @@ fn run_f50() -> bool {
     let labor = serde_json::json!([{"contract_id":"C1","employee_id":"E1","labor_cat":"Principal","hours":40.0,"rate":150.0}]);
     std::fs::write(p.join("labor_charges.json"), labor.to_string()).unwrap();
 
+    let billing = serde_json::json!([{"contract_id":"C1","employee_id":"E99","billed_hours":10.0,"billed_cat":"Junior","period":"2026-01"}]);
+    std::fs::write(p.join("billing_records.json"), billing.to_string()).unwrap();
+
     let ds = whyyoulying::Ingest::load_from_path(p).unwrap();
     assert_eq!(ds.contracts.len(), 1);
     assert_eq!(ds.employees.len(), 1);
     assert_eq!(ds.labor_charges.len(), 1);
+    assert_eq!(ds.billing_records.len(), 1);
 
     let labor_det = whyyoulying::LaborDetector::new(15.0);
-    let alerts = labor_det.run(&ds);
-    assert!(!alerts.is_empty());
-    assert!(alerts.iter().any(|a| format!("{:?}", a.rule_id).contains("LaborQualBelow")));
+    let ghost_det = whyyoulying::GhostDetector::new();
+    let labor_alerts = labor_det.run(&ds);
+    let ghost_alerts = ghost_det.run(&ds);
+    assert!(!labor_alerts.is_empty());
+    assert!(labor_alerts.iter().any(|a| format!("{:?}", a.rule_id).contains("LaborQualBelow")));
+    assert!(!ghost_alerts.is_empty());
+    assert!(ghost_alerts.iter().any(|a| format!("{:?}", a.rule_id).contains("GhostNoEmployee")));
 
     true
 }

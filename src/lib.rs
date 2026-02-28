@@ -13,5 +13,5 @@ pub use config::Config;
 pub use data::{Dataset, Ingest};
 pub use detect::{labor::LaborDetector, ghost::GhostDetector};
 pub use types::{
-    Alert, BillingRecord, Contract, Employee, FraudType, LaborCharge, RuleId,
+    Alert, BillingRecord, Contract, Employee, FraudType, LaborCharge, PredicateAct, RuleId,
 };

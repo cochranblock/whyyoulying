@@ -7,6 +7,7 @@ nff=never fire-and-forget bleed=bleeding edge 3s=triple sims chg upd !expose !me
 R=/home/mcochran/whyyoulying
 @go=cd $R && cargo run
 @t=cargo run -p whyyoulying -- --test
+@test=cargo test -p whyyoulying
 @b=cargo build --release -p whyyoulying
 @check=cargo check -p whyyoulying
 
