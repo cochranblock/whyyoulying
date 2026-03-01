@@ -8,7 +8,11 @@ use whyyoulying::{Alert, Config, GhostDetector, Ingest, LaborDetector};
 #[derive(Parser)]
 #[command(name = "whyyoulying")]
 #[command(about = "Proactive Labor Category Fraud and Ghost Billing detection")]
+#[command(version)]
 struct Cli {
+    #[arg(long, global = true, help = "Run f49 f50 f51 test suite")]
+    test: bool,
+
     #[arg(long, global = true)]
     config: Option<PathBuf>,
 
@@ -27,7 +31,7 @@ struct Cli {
     #[arg(long, global = true, help = "DoD nexus: filter by CAGE code")]
     cage_code: Option<String>,
 
-    #[arg(long, short, global = true, default_value = "json")]
+    #[arg(long, short, global = true, default_value = "json", value_enum)]
     output: OutputFormat,
 
     #[command(subcommand)]
@@ -42,11 +46,14 @@ enum OutputFormat {
 
 #[derive(Subcommand)]
 enum Commands {
+    /// Run labor + ghost detection, output alerts (default)
     Run,
+    /// Load and validate data only
     Ingest {
         #[arg(long)]
         path: Option<PathBuf>,
     },
+    /// Export GAGAS referral package or FBI case-opening docs
     ExportReferral {
         #[arg(long)]
         path: Option<PathBuf>,
@@ -57,6 +64,10 @@ enum Commands {
 
 fn main() {
     let cli = Cli::parse();
+
+    if cli.test {
+        std::process::exit(whyyoulying::tests::f30());
+    }
 
     let result = match &cli.command {
         None | Some(Commands::Run) => run(&cli),

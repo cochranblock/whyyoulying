@@ -55,7 +55,8 @@
 ## Run
 
 ```bash
-cargo run -p whyyoulying -- --test
+cargo build --release && cargo run --release -- --test
+# or: @b && @t
 ```
 
-Exit 0 = all pass.
+Exit 0 = all pass. Same binary (P14). E2E tests require release build.

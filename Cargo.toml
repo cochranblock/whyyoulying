@@ -2,12 +2,13 @@
 name = "whyyoulying"
 version = "0.1.0"
 edition = "2021"
+default-run = "whyyoulying"
 description = "Proactive detection of Labor Category Fraud and Ghost Billing"
 license = "Unlicense"
 repository = "https://github.com/gotemcoach/whyyoulying"
 
 [features]
-default = []
+default = ["tests"]
 tests = []
 
 [lib]
@@ -17,11 +18,6 @@ path = "src/lib.rs"
 [[bin]]
 name = "whyyoulying"
 path = "src/main.rs"
-
-[[bin]]
-name = "whyyoulying-test"
-path = "src/bin/whyyoulying-test.rs"
-required-features = ["tests"]
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
