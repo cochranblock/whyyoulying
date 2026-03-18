@@ -13,7 +13,13 @@ pub mod types;
 
 pub use config::Config;
 pub use data::{Dataset, Ingest};
-pub use detect::{labor::LaborDetector, ghost::GhostDetector};
+pub use detect::{
+    labor::LaborDetector,
+    ghost::GhostDetector,
+    rate_inflation::RateInflationDetector,
+    overtime::OvertimePaddingDetector,
+    duplicate_billing::DuplicateBillingDetector,
+};
 pub use types::{
-    Alert, BillingRecord, Contract, Employee, FraudType, LaborCharge, PredicateAct, RuleId,
+    Alert, BillingRecord, Contract, Employee, FraudType, LaborCharge, MonetaryImpact, PredicateAct, RuleId,
 };

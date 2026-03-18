@@ -26,11 +26,16 @@ impl fmt::Display for FraudType {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum RuleId {
+    // Labor Category Fraud
     LaborVariance,
     LaborQualBelow,
+    RateInflation,
+    OvertimePadding,
+    // Ghost Billing Fraud
     GhostNoEmployee,
     GhostNotVerified,
     GhostBilledNotPerformed,
+    DuplicateBilling,
 }
 
 impl fmt::Display for RuleId {
@@ -38,9 +43,12 @@ impl fmt::Display for RuleId {
         f.write_str(match self {
             RuleId::LaborVariance => "LABOR_VARIANCE",
             RuleId::LaborQualBelow => "LABOR_QUAL_BELOW",
+            RuleId::RateInflation => "RATE_INFLATION",
+            RuleId::OvertimePadding => "OVERTIME_PADDING",
             RuleId::GhostNoEmployee => "GHOST_NO_EMPLOYEE",
             RuleId::GhostNotVerified => "GHOST_NOT_VERIFIED",
             RuleId::GhostBilledNotPerformed => "GHOST_BILLED_NOT_PERFORMED",
+            RuleId::DuplicateBilling => "DUPLICATE_BILLING",
         })
     }
 }
@@ -52,6 +60,30 @@ pub enum PredicateAct {
     FalseClaims,
     WireFraud,
     IdentityFraud,
+    Conspiracy,
+    MailFraud,
+    ProcurementFraud,
+}
+
+/// Monetary impact calculation for fraud alerts.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MonetaryImpact {
+    /// Estimated questioned amount in USD.
+    pub questioned_amount: f64,
+    /// Currency code (default: USD).
+    pub currency: String,
+    /// How the amount was calculated.
+    pub calculation_method: String,
+}
+
+impl Default for MonetaryImpact {
+    fn default() -> Self {
+        Self {
+            questioned_amount: 0.0,
+            currency: "USD".to_string(),
+            calculation_method: String::new(),
+        }
+    }
 }
 
 /// Alert produced by a detector for fraud referral.
@@ -73,6 +105,12 @@ pub struct Alert {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub predicate_acts: Option<Vec<PredicateAct>>,
     pub timestamp: Option<String>,
+    /// Estimated monetary impact of the fraud.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub monetary_impact: Option<MonetaryImpact>,
+    /// Related alert IDs for pattern linking.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub related_alerts: Option<Vec<String>>,
 }
 
 // --- Domain entities (TRIPLE_SIMS_ARCH §1) ---
@@ -107,6 +145,9 @@ pub struct LaborCharge {
     pub labor_cat: String,
     pub hours: f64,
     pub rate: Option<f64>,
+    /// Time period for the charge (e.g., "2026-01-W1" or "2026-01-15").
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub period: Option<String>,
 }
 
 /// What was billed to gov.

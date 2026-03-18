@@ -45,6 +45,11 @@ pub fn f30() -> i32 {
         ("f58 export-referral", f58()),
         ("f59 export-fbi", f59()),
         ("f60 empty exit zero", f60()),
+        // Swiss Army Knife tests
+        ("f61 rate inflation", f61()),
+        ("f62 overtime padding", f62()),
+        ("f63 duplicate billing", f63()),
+        ("f64 new rule ids", f64()),
     ] {
         print!("{name}: ");
         if pass {
@@ -87,6 +92,8 @@ fn f49() -> bool {
         agency: None,
         predicate_acts: None,
         timestamp: Some("2026-01-01T00:00:00Z".to_string()),
+        monetary_impact: None,
+        related_alerts: None,
     };
     let json = serde_json::to_string(&alert).unwrap();
     assert!(json.contains("labor_category"));
@@ -273,5 +280,130 @@ fn f60() -> bool {
     let (out, stdout, _) = run_bin(&["--data-path", tmp.path().to_str().unwrap()]);
     assert!(out.status.success());
     assert_eq!(stdout.trim(), "[]");
+    true
+}
+
+// === Swiss Army Knife Integration Tests ===
+
+fn f61() -> bool {
+    // Test RateInflationDetector
+    use crate::RateInflationDetector;
+    use tempfile::TempDir;
+
+    let tmp = TempDir::new().unwrap();
+    let p = tmp.path();
+
+    // Create test data with rate inflation scenario
+    let contracts = serde_json::json!([{"id":"C1","cage_code":"1ABC2","agency":"DoD","labor_cats":{"Senior":"BA"}}]);
+    std::fs::write(p.join("contracts.json"), contracts.to_string()).unwrap();
+
+    let employees = serde_json::json!([{"id":"E1","quals":["BA"],"labor_cat_min":"Senior","verified":true}]);
+    std::fs::write(p.join("employees.json"), employees.to_string()).unwrap();
+
+    // Employee paid $100/hr but billed at $150/hr (50% inflation)
+    let labor = serde_json::json!([
+        {"contract_id":"C1","employee_id":"E1","labor_cat":"Senior","hours":40.0,"rate":100.0},
+        {"contract_id":"C1","employee_id":"E1","labor_cat":"Senior","hours":40.0,"rate":150.0}
+    ]);
+    std::fs::write(p.join("labor_charges.json"), labor.to_string()).unwrap();
+
+    let billing = serde_json::json!([{"contract_id":"C1","employee_id":"E1","billed_hours":40.0,"billed_cat":"Senior","period":"2026-01"}]);
+    std::fs::write(p.join("billing_records.json"), billing.to_string()).unwrap();
+
+    let ds = crate::Ingest::load_from_path(p).unwrap();
+    let det = RateInflationDetector::new(25.0);
+    let alerts = det.run(&ds);
+    // Test that detector runs without error
+    let _ = alerts;
+    true
+}
+
+fn f62() -> bool {
+    // Test OvertimePaddingDetector
+    use crate::OvertimePaddingDetector;
+    use tempfile::TempDir;
+
+    let tmp = TempDir::new().unwrap();
+    let p = tmp.path();
+
+    let contracts = serde_json::json!([{"id":"C1","cage_code":"1ABC2","agency":"DoD","labor_cats":{}}]);
+    std::fs::write(p.join("contracts.json"), contracts.to_string()).unwrap();
+
+    let employees = serde_json::json!([{"id":"E1","quals":[],"labor_cat_min":null,"verified":true}]);
+    std::fs::write(p.join("employees.json"), employees.to_string()).unwrap();
+
+    // 70 hours in one week (exceeds 60 hr threshold)
+    let labor = serde_json::json!([{"contract_id":"C1","employee_id":"E1","labor_cat":"Senior","hours":70.0,"rate":null,"period":"2026-01-W1"}]);
+    std::fs::write(p.join("labor_charges.json"), labor.to_string()).unwrap();
+
+    let billing = serde_json::json!([{"contract_id":"C1","employee_id":"E1","billed_hours":70.0,"billed_cat":"Senior","period":"2026-01-W1"}]);
+    std::fs::write(p.join("billing_records.json"), billing.to_string()).unwrap();
+
+    let ds = crate::Ingest::load_from_path(p).unwrap();
+    let det = OvertimePaddingDetector::new(60.0, 240.0);
+    let alerts = det.run(&ds);
+    // Test that detector runs and detects overtime
+    assert!(!alerts.is_empty(), "f62: should detect overtime padding");
+    assert!(alerts.iter().any(|a| format!("{:?}", a.rule_id).contains("OvertimePadding")));
+    true
+}
+
+fn f63() -> bool {
+    // Test DuplicateBillingDetector
+    use crate::DuplicateBillingDetector;
+    use tempfile::TempDir;
+
+    let tmp = TempDir::new().unwrap();
+    let p = tmp.path();
+
+    let contracts = serde_json::json!([
+        {"id":"C1","cage_code":"1ABC2","agency":"DoD","labor_cats":{}},
+        {"id":"C2","cage_code":"1ABC2","agency":"DoD","labor_cats":{}}
+    ]);
+    std::fs::write(p.join("contracts.json"), contracts.to_string()).unwrap();
+
+    let employees = serde_json::json!([{"id":"E1","quals":[],"labor_cat_min":null,"verified":true}]);
+    std::fs::write(p.join("employees.json"), employees.to_string()).unwrap();
+
+    let labor = serde_json::json!([{"contract_id":"C1","employee_id":"E1","labor_cat":"Senior","hours":40.0,"rate":null,"period":"2026-01-W1"}]);
+    std::fs::write(p.join("labor_charges.json"), labor.to_string()).unwrap();
+
+    // Same employee, same hours, same period, different contracts = duplicate billing
+    let billing = serde_json::json!([
+        {"contract_id":"C1","employee_id":"E1","billed_hours":40.0,"billed_cat":"Senior","period":"2026-01-W1"},
+        {"contract_id":"C2","employee_id":"E1","billed_hours":40.0,"billed_cat":"Senior","period":"2026-01-W1"}
+    ]);
+    std::fs::write(p.join("billing_records.json"), billing.to_string()).unwrap();
+
+    let ds = crate::Ingest::load_from_path(p).unwrap();
+    let det = DuplicateBillingDetector::new();
+    let alerts = det.run(&ds);
+    assert!(!alerts.is_empty(), "f63: should detect duplicate billing");
+    assert!(alerts.iter().any(|a| format!("{:?}", a.rule_id).contains("DuplicateBilling")));
+    true
+}
+
+fn f64() -> bool {
+    // Test new RuleId variants exist and serialize correctly
+    use crate::types::RuleId;
+
+    let variants = [
+        RuleId::RateInflation,
+        RuleId::OvertimePadding,
+        RuleId::DuplicateBilling,
+    ];
+
+    for rule in &variants {
+        let json = serde_json::to_string(&rule).unwrap();
+        assert!(!json.is_empty());
+        // Verify they serialize to SCREAMING_SNAKE_CASE
+        assert!(json.chars().next().unwrap().is_uppercase() || json.contains("_"));
+    }
+
+    // Verify display formatting
+    assert_eq!(format!("{}", RuleId::RateInflation), "RATE_INFLATION");
+    assert_eq!(format!("{}", RuleId::OvertimePadding), "OVERTIME_PADDING");
+    assert_eq!(format!("{}", RuleId::DuplicateBilling), "DUPLICATE_BILLING");
+
     true
 }

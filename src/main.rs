@@ -3,7 +3,10 @@
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
-use whyyoulying::{Alert, Config, GhostDetector, Ingest, LaborDetector};
+use whyyoulying::{
+    Alert, Config, GhostDetector, Ingest, LaborDetector,
+    RateInflationDetector, OvertimePaddingDetector, DuplicateBillingDetector,
+};
 
 #[derive(Parser)]
 #[command(name = "whyyoulying")]
@@ -30,6 +33,15 @@ struct Cli {
 
     #[arg(long, global = true, help = "DoD nexus: filter by CAGE code")]
     cage_code: Option<String>,
+
+    #[arg(long, global = true, value_parser = clap::value_parser!(f64), help = "Rate inflation threshold percentage (0-100)")]
+    rate_inflation_threshold: Option<f64>,
+
+    #[arg(long, global = true, value_parser = clap::value_parser!(f64), help = "Weekly overtime threshold in hours (default: 60)")]
+    overtime_threshold_weekly: Option<f64>,
+
+    #[arg(long, global = true, value_parser = clap::value_parser!(f64), help = "Monthly overtime threshold in hours (default: 240)")]
+    overtime_threshold_monthly: Option<f64>,
 
     #[arg(long, short, global = true, default_value = "json", value_enum)]
     output: OutputFormat,
@@ -122,9 +134,26 @@ fn run(cli: &Cli) -> Result<i32> {
     let ghost = GhostDetector::new();
     let labor_alerts = labor.run(&ds);
     let ghost_alerts = ghost.run(&ds);
+    
+    // Swiss Army Knife detectors
+    let rate_inflation_threshold = cli.rate_inflation_threshold.unwrap_or(15.0);
+    let rate_inflation = RateInflationDetector::new(rate_inflation_threshold);
+    let rate_inflation_alerts = rate_inflation.run(&ds);
+    
+    let overtime_weekly = cli.overtime_threshold_weekly.unwrap_or(60.0);
+    let overtime_monthly = cli.overtime_threshold_monthly.unwrap_or(240.0);
+    let overtime = OvertimePaddingDetector::new(overtime_weekly, overtime_monthly);
+    let overtime_alerts = overtime.run(&ds);
+    
+    let duplicate_billing = DuplicateBillingDetector::new();
+    let duplicate_billing_alerts = duplicate_billing.run(&ds);
+    
     let mut alerts: Vec<Alert> = labor_alerts
         .into_iter()
         .chain(ghost_alerts)
+        .chain(rate_inflation_alerts)
+        .chain(overtime_alerts)
+        .chain(duplicate_billing_alerts)
         .collect();
 
     let nexus_ids = ds.nexus_contract_ids(
@@ -193,10 +222,17 @@ fn cmd_export_referral(cli: &Cli, path: Option<&std::path::Path>, fbi_format: bo
     let ds = Ingest::load_from_path(&data_path)?;
     let labor = LaborDetector::new(config.labor_variance_threshold_pct);
     let ghost = GhostDetector::new();
+    let rate_inflation = RateInflationDetector::new(15.0);
+    let overtime = OvertimePaddingDetector::new(60.0, 240.0);
+    let duplicate_billing = DuplicateBillingDetector::new();
+    
     let mut alerts: Vec<Alert> = labor
         .run(&ds)
         .into_iter()
         .chain(ghost.run(&ds))
+        .chain(rate_inflation.run(&ds))
+        .chain(overtime.run(&ds))
+        .chain(duplicate_billing.run(&ds))
         .collect();
 
     let nexus_ids = ds.nexus_contract_ids(

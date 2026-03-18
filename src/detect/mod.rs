@@ -2,6 +2,9 @@
 
 pub mod ghost;
 pub mod labor;
+pub mod rate_inflation;
+pub mod overtime;
+pub mod duplicate_billing;
 
 #[cfg(test)]
 mod tests {

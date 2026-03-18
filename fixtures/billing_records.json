@@ -4,20 +4,27 @@
     "employee_id": "E1",
     "billed_hours": 40.0,
     "billed_cat": "Senior",
-    "period": "2026-01"
+    "period": "2026-01-W1"
   },
   {
     "contract_id": "C1",
     "employee_id": "E2",
     "billed_hours": 25.0,
     "billed_cat": "Lead",
-    "period": "2026-01"
+    "period": "2026-01-W1"
   },
   {
     "contract_id": "C1",
     "employee_id": "E3",
     "billed_hours": 10.0,
     "billed_cat": "Junior",
-    "period": "2026-01"
+    "period": "2026-01-W1"
+  },
+  {
+    "contract_id": "C1",
+    "employee_id": "E2",
+    "billed_hours": 65.0,
+    "billed_cat": "Lead",
+    "period": "2026-01-W2"
   }
 ]
