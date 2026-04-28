@@ -136,5 +136,7 @@ fn alert(
         agency: agency.map(String::from),
         predicate_acts: Some(predicate_acts),
         timestamp: Some(Utc::now().to_rfc3339()),
+        monetary_impact: None,
+        related_alerts: None,
     }
 }
