@@ -102,7 +102,7 @@ impl OvertimePaddingDetector {
         // Check weekly thresholds
         for ((employee_id, month, week), hours) in &weekly_hours {
             if *hours > self.weekly_threshold {
-                if let Some(emp) = ds.employee_by_id(employee_id) {
+                if ds.employee_by_id(employee_id).is_some() {
                     let contract = ds.labor_charges
                         .iter()
                         .find(|lc| lc.employee_id == *employee_id)
@@ -140,7 +140,7 @@ impl OvertimePaddingDetector {
         // Check monthly thresholds
         for ((employee_id, month), hours) in &monthly_hours {
             if *hours > self.monthly_threshold {
-                if let Some(emp) = ds.employee_by_id(employee_id) {
+                if ds.employee_by_id(employee_id).is_some() {
                     let contract = ds.labor_charges
                         .iter()
                         .find(|lc| lc.employee_id == *employee_id)

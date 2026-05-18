@@ -179,6 +179,7 @@ mod tests {
             billed_hours: 40.0,
             billed_cat: "Senior".into(),
             period: Some("2026-01-W1".into()),
+            billed_rate: None,
         });
         ds.billing_records.push(BillingRecord {
             contract_id: "C2".into(),
@@ -186,6 +187,7 @@ mod tests {
             billed_hours: 40.0,
             billed_cat: "Senior".into(),
             period: Some("2026-01-W1".into()),
+            billed_rate: None,
         });
         
         let det = DuplicateBillingDetector::new();
@@ -206,6 +208,7 @@ mod tests {
             billed_hours: 40.0,
             billed_cat: "Senior".into(),
             period: Some("2026-01-W1".into()),
+            billed_rate: None,
         });
         ds.billing_records.push(BillingRecord {
             contract_id: "C2".into(),
@@ -213,6 +216,7 @@ mod tests {
             billed_hours: 40.0,
             billed_cat: "Senior".into(),
             period: Some("2026-01-W2".into()), // Different week
+            billed_rate: None,
         });
         
         let det = DuplicateBillingDetector::new();
@@ -231,6 +235,7 @@ mod tests {
             billed_hours: 40.0,
             billed_cat: "Senior".into(),
             period: Some("2026-01-W1".into()),
+            billed_rate: None,
         });
         ds.billing_records.push(BillingRecord {
             contract_id: "C2".into(),
@@ -238,6 +243,7 @@ mod tests {
             billed_hours: 20.0, // Different hours
             billed_cat: "Senior".into(),
             period: Some("2026-01-W1".into()),
+            billed_rate: None,
         });
         
         let det = DuplicateBillingDetector::new();
@@ -256,6 +262,7 @@ mod tests {
             billed_hours: 40.0,
             billed_cat: "Senior".into(),
             period: Some("2026-01-W1".into()),
+            billed_rate: None,
         });
         ds.billing_records.push(BillingRecord {
             contract_id: "C1".into(), // Same contract
@@ -263,6 +270,7 @@ mod tests {
             billed_hours: 40.0,
             billed_cat: "Junior".into(),
             period: Some("2026-01-W1".into()),
+            billed_rate: None,
         });
         
         let det = DuplicateBillingDetector::new();

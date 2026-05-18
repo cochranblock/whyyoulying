@@ -286,35 +286,36 @@ fn f60() -> bool {
 // === Swiss Army Knife Integration Tests ===
 
 fn f61() -> bool {
-    // Test RateInflationDetector
+    // Test RateInflationDetector — payroll $100/hr vs billed $150/hr (50% inflation)
     use crate::RateInflationDetector;
     use tempfile::TempDir;
 
     let tmp = TempDir::new().unwrap();
     let p = tmp.path();
 
-    // Create test data with rate inflation scenario
     let contracts = serde_json::json!([{"id":"C1","cage_code":"1ABC2","agency":"DoD","labor_cats":{"Senior":"BA"}}]);
     std::fs::write(p.join("contracts.json"), contracts.to_string()).unwrap();
 
     let employees = serde_json::json!([{"id":"E1","quals":["BA"],"labor_cat_min":"Senior","verified":true}]);
     std::fs::write(p.join("employees.json"), employees.to_string()).unwrap();
 
-    // Employee paid $100/hr but billed at $150/hr (50% inflation)
+    // Payroll rate from labor_charges.rate
     let labor = serde_json::json!([
-        {"contract_id":"C1","employee_id":"E1","labor_cat":"Senior","hours":40.0,"rate":100.0},
-        {"contract_id":"C1","employee_id":"E1","labor_cat":"Senior","hours":40.0,"rate":150.0}
+        {"contract_id":"C1","employee_id":"E1","labor_cat":"Senior","hours":40.0,"rate":100.0}
     ]);
     std::fs::write(p.join("labor_charges.json"), labor.to_string()).unwrap();
 
-    let billing = serde_json::json!([{"contract_id":"C1","employee_id":"E1","billed_hours":40.0,"billed_cat":"Senior","period":"2026-01"}]);
+    // Billed rate from billing_records.billed_rate
+    let billing = serde_json::json!([
+        {"contract_id":"C1","employee_id":"E1","billed_hours":40.0,"billed_cat":"Senior","period":"2026-01","billed_rate":150.0}
+    ]);
     std::fs::write(p.join("billing_records.json"), billing.to_string()).unwrap();
 
     let ds = crate::Ingest::load_from_path(p).unwrap();
     let det = RateInflationDetector::new(25.0);
     let alerts = det.run(&ds);
-    // Test that detector runs without error
-    let _ = alerts;
+    assert!(!alerts.is_empty(), "f61: should detect rate inflation");
+    assert!(alerts.iter().any(|a| format!("{:?}", a.rule_id).contains("RateInflation")));
     true
 }
 

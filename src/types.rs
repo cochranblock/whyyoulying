@@ -150,7 +150,7 @@ pub struct LaborCharge {
     pub period: Option<String>,
 }
 
-/// What was billed to gov.
+/// What was billed to the customer.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct BillingRecord {
     pub contract_id: String,
@@ -158,6 +158,10 @@ pub struct BillingRecord {
     pub billed_hours: f64,
     pub billed_cat: String,
     pub period: Option<String>,
+    /// Rate billed to the customer. Compared against `LaborCharge.rate` (payroll/actual)
+    /// to detect rate inflation.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub billed_rate: Option<f64>,
 }
 
 #[cfg(test)]
@@ -178,6 +182,8 @@ mod tests {
             agency: None,
             predicate_acts: None,
             timestamp: None,
+            monetary_impact: None,
+            related_alerts: None,
         };
         let j = serde_json::to_string(&a).unwrap();
         assert!(j.contains("labor_category"));
@@ -197,6 +203,8 @@ mod tests {
             agency: None,
             predicate_acts: None,
             timestamp: None,
+            monetary_impact: None,
+            related_alerts: None,
         };
         let j = serde_json::to_string(&a).unwrap();
         assert!(j.contains("GHOST_NO_EMPLOYEE"));
@@ -216,6 +224,8 @@ mod tests {
             agency: Some("DoD".into()),
             predicate_acts: Some(vec![PredicateAct::FalseClaims]),
             timestamp: Some("2026-01-01T00:00:00Z".into()),
+            monetary_impact: None,
+            related_alerts: None,
         };
         let j = serde_json::to_string(&a).unwrap();
         let b: Alert = serde_json::from_str(&j).unwrap();
@@ -267,6 +277,8 @@ mod tests {
             agency: None,
             predicate_acts: None,
             timestamp: None,
+            monetary_impact: None,
+            related_alerts: None,
         };
         let j = serde_json::to_string(&a).unwrap();
         assert!(j.contains("ghost_billing"));
@@ -286,6 +298,8 @@ mod tests {
             agency: None,
             predicate_acts: Some(vec![PredicateAct::WireFraud]),
             timestamp: None,
+            monetary_impact: None,
+            related_alerts: None,
         };
         let j = serde_json::to_string(&a).unwrap();
         assert!(j.contains("wire_fraud"));

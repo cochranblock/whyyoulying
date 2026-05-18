@@ -109,6 +109,11 @@ fn load_config(cli: &Cli) -> Result<Config> {
         cli.agency.clone(),
         cli.cage_code.clone(),
     )?;
+    cfg.apply_detector_overrides(
+        cli.rate_inflation_threshold,
+        cli.overtime_threshold_weekly,
+        cli.overtime_threshold_monthly,
+    );
     Ok(cfg)
 }
 
@@ -130,31 +135,7 @@ fn run(cli: &Cli) -> Result<i32> {
         ds.billing_records.len()
     );
 
-    let labor = LaborDetector::new(config.labor_variance_threshold_pct);
-    let ghost = GhostDetector::new();
-    let labor_alerts = labor.run(&ds);
-    let ghost_alerts = ghost.run(&ds);
-    
-    // Swiss Army Knife detectors
-    let rate_inflation_threshold = cli.rate_inflation_threshold.unwrap_or(15.0);
-    let rate_inflation = RateInflationDetector::new(rate_inflation_threshold);
-    let rate_inflation_alerts = rate_inflation.run(&ds);
-    
-    let overtime_weekly = cli.overtime_threshold_weekly.unwrap_or(60.0);
-    let overtime_monthly = cli.overtime_threshold_monthly.unwrap_or(240.0);
-    let overtime = OvertimePaddingDetector::new(overtime_weekly, overtime_monthly);
-    let overtime_alerts = overtime.run(&ds);
-    
-    let duplicate_billing = DuplicateBillingDetector::new();
-    let duplicate_billing_alerts = duplicate_billing.run(&ds);
-    
-    let mut alerts: Vec<Alert> = labor_alerts
-        .into_iter()
-        .chain(ghost_alerts)
-        .chain(rate_inflation_alerts)
-        .chain(overtime_alerts)
-        .chain(duplicate_billing_alerts)
-        .collect();
+    let mut alerts: Vec<Alert> = run_all_detectors(&ds, &config);
 
     let nexus_ids = ds.nexus_contract_ids(
         config.filter_agency.as_deref(),
@@ -220,20 +201,7 @@ fn cmd_export_referral(cli: &Cli, path: Option<&std::path::Path>, fbi_format: bo
         .map(PathBuf::from)
         .ok_or_else(|| anyhow::anyhow!("--data-path required for export-referral"))?;
     let ds = Ingest::load_from_path(&data_path)?;
-    let labor = LaborDetector::new(config.labor_variance_threshold_pct);
-    let ghost = GhostDetector::new();
-    let rate_inflation = RateInflationDetector::new(15.0);
-    let overtime = OvertimePaddingDetector::new(60.0, 240.0);
-    let duplicate_billing = DuplicateBillingDetector::new();
-    
-    let mut alerts: Vec<Alert> = labor
-        .run(&ds)
-        .into_iter()
-        .chain(ghost.run(&ds))
-        .chain(rate_inflation.run(&ds))
-        .chain(overtime.run(&ds))
-        .chain(duplicate_billing.run(&ds))
-        .collect();
+    let mut alerts: Vec<Alert> = run_all_detectors(&ds, &config);
 
     let nexus_ids = ds.nexus_contract_ids(
         config.filter_agency.as_deref(),
@@ -259,6 +227,22 @@ fn cmd_export_referral(cli: &Cli, path: Option<&std::path::Path>, fbi_format: bo
         println!("{out}");
     }
     Ok(if alerts.is_empty() { 0 } else { 1 })
+}
+
+fn run_all_detectors(ds: &whyyoulying::Dataset, config: &Config) -> Vec<Alert> {
+    let labor = LaborDetector::new(config.labor_variance_threshold_pct);
+    let ghost = GhostDetector::new();
+    let rate_inflation = RateInflationDetector::new(config.rate_inflation_threshold_pct);
+    let overtime = OvertimePaddingDetector::new(config.overtime_weekly, config.overtime_monthly);
+    let duplicate_billing = DuplicateBillingDetector::new();
+    labor
+        .run(ds)
+        .into_iter()
+        .chain(ghost.run(ds))
+        .chain(rate_inflation.run(ds))
+        .chain(overtime.run(ds))
+        .chain(duplicate_billing.run(ds))
+        .collect()
 }
 
 fn escape_csv(s: &str) -> String {

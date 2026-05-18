@@ -22,10 +22,31 @@ pub struct Config {
     pub filter_agency: Option<String>,
     /// DoD nexus: filter by CAGE code.
     pub filter_cage_code: Option<String>,
+    /// Rate inflation threshold (% variance billed vs payroll).
+    #[serde(default = "default_rate_inflation_threshold_pct")]
+    pub rate_inflation_threshold_pct: f64,
+    /// Weekly hours threshold for overtime padding detector.
+    #[serde(default = "default_overtime_weekly")]
+    pub overtime_weekly: f64,
+    /// Monthly hours threshold for overtime padding detector.
+    #[serde(default = "default_overtime_monthly")]
+    pub overtime_monthly: f64,
 }
 
 fn default_min_confidence() -> u8 {
     50
+}
+
+fn default_rate_inflation_threshold_pct() -> f64 {
+    15.0
+}
+
+fn default_overtime_weekly() -> f64 {
+    60.0
+}
+
+fn default_overtime_monthly() -> f64 {
+    240.0
 }
 
 impl Default for Config {
@@ -36,6 +57,9 @@ impl Default for Config {
             min_confidence: 50,
             filter_agency: None,
             filter_cage_code: None,
+            rate_inflation_threshold_pct: default_rate_inflation_threshold_pct(),
+            overtime_weekly: default_overtime_weekly(),
+            overtime_monthly: default_overtime_monthly(),
         }
     }
 }
@@ -83,6 +107,23 @@ impl Config {
             self.filter_cage_code = filter_cage_code;
         }
         Ok(())
+    }
+
+    pub fn apply_detector_overrides(
+        &mut self,
+        rate_inflation_threshold: Option<f64>,
+        overtime_weekly: Option<f64>,
+        overtime_monthly: Option<f64>,
+    ) {
+        if let Some(v) = rate_inflation_threshold {
+            self.rate_inflation_threshold_pct = v;
+        }
+        if let Some(v) = overtime_weekly {
+            self.overtime_weekly = v;
+        }
+        if let Some(v) = overtime_monthly {
+            self.overtime_monthly = v;
+        }
     }
 }
 
