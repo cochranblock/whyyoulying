@@ -6,6 +6,7 @@ default-run = "whyyoulying"
 description = "Proactive detection of Labor Category Fraud and Ghost Billing"
 license = "Unlicense"
 repository = "https://github.com/gotemcoach/whyyoulying"
+documentation = "https://cochranblock.github.io/whyyoulying/"
 
 [features]
 default = ["tests"]

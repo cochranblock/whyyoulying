@@ -1,0 +1,13 @@
+[book]
+title = "whyyoulying"
+description = "DoD fraud detection and contract anomaly analysis."
+src = "src"
+language = "en"
+
+[output.html]
+git-repository-url = "https://github.com/cochranblock/whyyoulying"
+site-url = "/whyyoulying/"
+default-theme = "coal"
+preferred-dark-theme = "coal"
+additional-css = ["theme/custom.css"]
+additional-js = ["theme/force-theme.js"]

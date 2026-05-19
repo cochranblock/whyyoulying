@@ -24,15 +24,17 @@ Per DoDI 5505.02/03, DoD OIG Fraud Scenarios, and Attorney General Guidelines.
 
 ## Documentation
 
+**[cochranblock.github.io/whyyoulying](https://cochranblock.github.io/whyyoulying/)** — full mdBook docs.
+
 This README is the entry point. The actual docs live in two source-of-truth files at the root of the repo:
 
 - **[PROOF_OF_ARTIFACTS.md](PROOF_OF_ARTIFACTS.md)** — what exists today, status, source-linked. Quick start, CLI commands, data format, detection rules. If you want to know what this project *does*, read this.
 - **[TIMELINE_OF_INVENTION.md](TIMELINE_OF_INVENTION.md)** — dated, commit-level record of what was built, when, and why. If you want to know how this project *got built*, read this.
 
 Supporting docs:
-- [docs/USER_STORY_ANALYSIS.md](docs/USER_STORY_ANALYSIS.md) — DoD IG / FBI personas
-- [docs/TRIPLE_SIMS_WHYYOULYING.md](docs/TRIPLE_SIMS_WHYYOULYING.md) — Sim 1–4
-- [docs/TRIPLE_SIMS_ARCH.md](docs/TRIPLE_SIMS_ARCH.md) — Domain model, pipeline
+- [planning/USER_STORY_ANALYSIS.md](planning/USER_STORY_ANALYSIS.md) — DoD IG / FBI personas
+- [planning/TRIPLE_SIMS_WHYYOULYING.md](planning/TRIPLE_SIMS_WHYYOULYING.md) — Sim 1–4
+- [planning/TRIPLE_SIMS_ARCH.md](planning/TRIPLE_SIMS_ARCH.md) — Domain model, pipeline
 
 ---
 
